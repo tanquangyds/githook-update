@@ -3,9 +3,13 @@ import React, { useState, useEffect, useCallback } from "react";
 import IngredientForm from "./IngredientForm";
 import Search from "./Search";
 import IngredientList from "./IngredientList";
+import ErrorModal from '../UI/ErrorModal';
+
 
 function Ingredients() {
   const [ingredients, setIngredients] = useState([]);
+  const [loadedIngredients, setLoadedIngredients] = useState(false);
+  const [error, setError] = useState();
   useEffect(() => {
     fetch(
       "https://react-hook-update-daf8b-default-rtdb.firebaseio.com/ingredients.json"
@@ -16,13 +20,14 @@ function Ingredients() {
       .then((responseData) => {
         console.log(responseData);
         const loadedIngredients = [];
-        Object.keys(responseData).map((key) =>
-          loadedIngredients.push({
-            id: key,
-            title: responseData[key].title,
-            amount: responseData[key].amount,
-          })
-        );
+        responseData &&
+          Object.keys(responseData).map((key) =>
+            loadedIngredients.push({
+              id: key,
+              title: responseData[key].title,
+              amount: responseData[key].amount,
+            })
+          );
         setIngredients(loadedIngredients);
       });
   }, []);
@@ -32,6 +37,7 @@ function Ingredients() {
   }, []);
 
   const addIngredientHandler = (ingredient) => {
+    setLoadedIngredients(true);
     fetch(
       "https://react-hook-update-daf8b-default-rtdb.firebaseio.com/ingredients.json",
       {
@@ -41,6 +47,7 @@ function Ingredients() {
       }
     )
       .then((response) => {
+        setLoadedIngredients(false);
         return response.json();
       })
       .then((responseData) => {
@@ -51,14 +58,31 @@ function Ingredients() {
       });
   };
   const removeIngredientHandler = (id) => {
-    setIngredients((prevIngredients) =>
-      prevIngredients.filter((ingredient) => ingredient.id !== id)
-    );
-    console.log(ingredients);
+    setLoadedIngredients(true);
+    fetch(
+      `https://react-hook-update-daf8b-default-rtdb.firebaseio.com/ingredients/${id}.json`,
+      {
+        method: "DELETE",
+      }
+    ).then((response) => {
+      setLoadedIngredients(false);
+      setIngredients((prevIngredients) =>
+        prevIngredients.filter((ingredient) => ingredient.id !== id)
+      );
+    }).catch(error => {
+      setError('Something went wrong');
+    });
   };
+
+  const clearError = () => {
+    setError(null);
+    setLoadedIngredients(false);
+  }
+
   return (
     <div className="App">
-      <IngredientForm onAddIngredient={addIngredientHandler} />
+      {error && <ErrorModal onClose={clearError}>{error}</ErrorModal>}
+      <IngredientForm onAddIngredient={addIngredientHandler} isLoading={loadedIngredients}/>
       <section>
         <Search onLoadingIngredients={filterIngredientHandler} />
         <IngredientList
